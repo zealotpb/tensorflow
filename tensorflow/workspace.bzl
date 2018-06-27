@@ -107,11 +107,11 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
   tf_http_archive(
       name = "eigen_archive",
       urls = [
-          "https://mirror.bazel.build/bitbucket.org/eigen/eigen/get/7a835107faf8.tar.gz",
-          "https://bitbucket.org/eigen/eigen/get/7a835107faf8.tar.gz",
+          "https://mirror.bazel.build/bitbucket.org/eigen/eigen/get/fd6845384b86.tar.gz",
+          "https://bitbucket.org/eigen/eigen/get/fd6845384b86.tar.gz",
       ],
-      sha256 = "1c65c3d9b4eb8d95ea3a4f9d3968eaf567be22fe8c445db173665d2a25d47263",
-      strip_prefix = "eigen-eigen-7a835107faf8",
+      sha256 = "d956415d784fa4e42b6a2a45c32556d6aec9d0a3d8ef48baee2522ab762556a9",
+      strip_prefix = "eigen-eigen-fd6845384b86",
       build_file = clean_dep("//third_party:eigen.BUILD"),
   )
 
@@ -131,11 +131,11 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
   tf_http_archive(
       name = "libxsmm_archive",
       urls = [
-          "https://mirror.bazel.build/github.com/hfp/libxsmm/archive/1.8.1.tar.gz",
-          "https://github.com/hfp/libxsmm/archive/1.8.1.tar.gz",
+          "https://mirror.bazel.build/github.com/hfp/libxsmm/archive/1.9.tar.gz",
+          "https://github.com/hfp/libxsmm/archive/1.9.tar.gz",
       ],
-      sha256 = "2ade869c3f42f23b5263c7d594aa3c7e5e61ac6a3afcaf5d6e42899d2a7986ce",
-      strip_prefix = "libxsmm-1.8.1",
+      sha256 = "cd8532021352b4a0290d209f7f9bfd7c2411e08286a893af3577a43457287bfa",
+      strip_prefix = "libxsmm-1.9",
       build_file = clean_dep("//third_party:libxsmm.BUILD"),
   )
 
@@ -155,12 +155,12 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
   tf_http_archive(
       name = "com_googlesource_code_re2",
       urls = [
-          "https://mirror.bazel.build/github.com/google/re2/archive/26cd968b735e227361c9703683266f01e5df7857.tar.gz",
-          "https://github.com/google/re2/archive/26cd968b735e227361c9703683266f01e5df7857.tar.gz",
+          "https://mirror.bazel.build/github.com/google/re2/archive/2018-04-01.tar.gz",
+          "https://github.com/google/re2/archive/2018-04-01.tar.gz",
 
       ],
-      sha256 = "e57eeb837ac40b5be37b2c6197438766e73343ffb32368efea793dfd8b28653b",
-      strip_prefix = "re2-26cd968b735e227361c9703683266f01e5df7857",
+      sha256 = "2f945446b71336e7f5a2bcace1abcf0b23fbba368266c6a1be33de3de3b3c912",
+      strip_prefix = "re2-2018-04-01",
   )
 
   tf_http_archive(
@@ -233,11 +233,11 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
   tf_http_archive(
       name = "org_sqlite",
       urls = [
-          "https://mirror.bazel.build/www.sqlite.org/2018/sqlite-amalgamation-3230100.zip",
-          "https://www.sqlite.org/2018/sqlite-amalgamation-3230100.zip",
+          "https://mirror.bazel.build/www.sqlite.org/2018/sqlite-amalgamation-3240000.zip",
+          "https://www.sqlite.org/2018/sqlite-amalgamation-3240000.zip",
       ],
-      sha256 = "4239a1f69e5721d07d9a374eb84d594225229e54be4ee628da2995f4315d8dfc",
-      strip_prefix = "sqlite-amalgamation-3230100",
+      sha256 = "ad68c1216c3a474cf360c7581a4001e952515b3649342100f2d7ca7c8e313da6",
+      strip_prefix = "sqlite-amalgamation-3240000",
       build_file = clean_dep("//third_party:sqlite.BUILD"),
   )
 
@@ -299,11 +299,11 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
   tf_http_archive(
       name = "absl_py",
       urls = [
-          "https://mirror.bazel.build/github.com/abseil/abseil-py/archive/ea8c4d2ddbf3fba610c4d613260561699b776db8.tar.gz",
-          "https://github.com/abseil/abseil-py/archive/ea8c4d2ddbf3fba610c4d613260561699b776db8.tar.gz",
+          "https://mirror.bazel.build/github.com/abseil/abseil-py/archive/pypi-v0.2.2.tar.gz",
+          "https://github.com/abseil/abseil-py/archive/pypi-v0.2.2.tar.gz",
       ],
-      sha256 = "c30b48e0d2580ef1412e55c5c0e1dab8db2ee4ab56e2075eccff29c90c7c7059",
-      strip_prefix = "abseil-py-ea8c4d2ddbf3fba610c4d613260561699b776db8",
+      sha256 = "95160f778a62c7a60ddeadc7bf2d83f85a23a27359814aca12cf949e896fa82c",
+      strip_prefix = "abseil-py-pypi-v0.2.2",
   )
 
   tf_http_archive(
@@ -393,12 +393,12 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
 
   tf_http_archive(
       name = "pcre",
-      sha256 = "ccdf7e788769838f8285b3ee672ed573358202305ee361cfec7a4a4fb005bbc7",
+      sha256 = "69acbc2fbdefb955d42a4c606dfde800c2885711d2979e356c0636efde9ec3b5",
       urls = [
-          "https://mirror.bazel.build/ftp.exim.org/pub/pcre/pcre-8.39.tar.gz",
-          "http://ftp.exim.org/pub/pcre/pcre-8.39.tar.gz",
+          "https://mirror.bazel.build/ftp.exim.org/pub/pcre/pcre-8.42.tar.gz",
+          "http://ftp.exim.org/pub/pcre/pcre-8.42.tar.gz",
       ],
-      strip_prefix = "pcre-8.39",
+      strip_prefix = "pcre-8.42",
       build_file = clean_dep("//third_party:pcre.BUILD"),
   )
 
@@ -428,11 +428,11 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
   tf_http_archive(
       name = "grpc",
       urls = [
-          "https://mirror.bazel.build/github.com/grpc/grpc/archive/d184fa229d75d336aedea0041bd59cb93e7e267f.tar.gz",
-          "https://github.com/grpc/grpc/archive/d184fa229d75d336aedea0041bd59cb93e7e267f.tar.gz",
+          "https://mirror.bazel.build/github.com/grpc/grpc/archive/v1.12.1.tar.gz",
+          "https://github.com/grpc/grpc/archive/v1.12.1.tar.gz",
       ],
-      sha256 = "895b31310e718a61f7335759a778c068a6edde1c089883598a0830cbb7075673",
-      strip_prefix = "grpc-d184fa229d75d336aedea0041bd59cb93e7e267f",
+      sha256 = "f6afbfafa8e7b524727d1ff37ff22fe9c3dcca07bd864e7a9d1efabf1d15d13c",
+      strip_prefix = "grpc-1.12.1",
   )
 
 
@@ -452,11 +452,11 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
   tf_http_archive(
       name = "llvm",
       urls = [
-          "https://mirror.bazel.build/github.com/llvm-mirror/llvm/archive/19357eaea4f9599bcb228611719e0c5b8fc65298.tar.gz",
-	  "https://github.com/llvm-mirror/llvm/archive/19357eaea4f9599bcb228611719e0c5b8fc65298.tar.gz",
+          "https://mirror.bazel.build/github.com/llvm-mirror/llvm/archive/8a152c54c401f9a9370bedf05049ac5b847bc965.tar.gz",
+	  "https://github.com/llvm-mirror/llvm/archive/8a152c54c401f9a9370bedf05049ac5b847bc965.tar.gz",
       ],
-      sha256 = "c07971d102ae5353c4a22c15e82e75f4347a16260c52060187baf4b113161216",
-      strip_prefix = "llvm-19357eaea4f9599bcb228611719e0c5b8fc65298",
+      sha256 = "dad37678abffa4f3001b1789a89f64f245bc50721f8d37b4f8b31b0695e90015",
+      strip_prefix = "llvm-8a152c54c401f9a9370bedf05049ac5b847bc965",
       build_file = clean_dep("//third_party/llvm:llvm.autogenerated.BUILD"),
   )
 
@@ -662,12 +662,12 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
 
   tf_http_archive(
       name = "cython",
-      sha256 = "6dcd30b5ceb887b2b965ee7ceb82ea3acb5f0642fe2206c7636b45acea4798e5",
+      sha256 = "05e3eb7f06043f5ff2028338370329e71c29f57315e95f4dc6ad7c4971dd4c6f",
       urls = [
-          "https://mirror.bazel.build/github.com/cython/cython/archive/3732784c45cfb040a5b0936951d196f83a12ea17.tar.gz",
-          "https://github.com/cython/cython/archive/3732784c45cfb040a5b0936951d196f83a12ea17.tar.gz",
+          "https://mirror.bazel.build/github.com/cython/cython/archive/0.28.3.tar.gz",
+          "https://github.com/cython/cython/archive/0.28.3.tar.gz",
       ],
-      strip_prefix = "cython-3732784c45cfb040a5b0936951d196f83a12ea17",
+      strip_prefix = "cython-0.28.3",
       build_file = clean_dep("//third_party:cython.BUILD"),
       delete = ["BUILD.bazel"],
   )
@@ -675,11 +675,11 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
   tf_http_archive(
       name = "bazel_toolchains",
       urls = [
-          "https://mirror.bazel.build/github.com/bazelbuild/bazel-toolchains/archive/44200e0c026d86c53470d107b3697a3e46469c43.tar.gz",
-          "https://github.com/bazelbuild/bazel-toolchains/archive/44200e0c026d86c53470d107b3697a3e46469c43.tar.gz",
+          "https://mirror.bazel.build/github.com/bazelbuild/bazel-toolchains/archive/2cec6c9f6d12224e93d9b3f337b24e41602de3ba.tar.gz",
+          "https://github.com/bazelbuild/bazel-toolchains/archive/2cec6c9f6d12224e93d9b3f337b24e41602de3ba.tar.gz",
       ],
-      strip_prefix = "bazel-toolchains-44200e0c026d86c53470d107b3697a3e46469c43",
-      sha256 = "699b55a6916c687f4b7dc092dbbf5f64672cde0dc965f79717735ec4e5416556",
+      strip_prefix = "bazel-toolchains-2cec6c9f6d12224e93d9b3f337b24e41602de3ba",
+      sha256 = "9b8d85b61d8945422e86ac31e4d4d2d967542c080d1da1b45364da7fd6bdd638",
   )
 
   tf_http_archive(

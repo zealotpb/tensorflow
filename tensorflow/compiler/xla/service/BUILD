@@ -1951,6 +1951,7 @@ cc_library(
     hdrs = ["tuple_points_to_analysis.h"],
     deps = [
         ":hlo",
+        ":hlo_dataflow_analysis",
         ":logical_buffer",
         ":logical_buffer_analysis",
         "//tensorflow/compiler/xla:shape_tree",
@@ -2093,6 +2094,7 @@ cc_library(
     hdrs = ["hlo_verifier.h"],
     deps = [
         ":hlo",
+        ":hlo_casting_utils",
         ":hlo_pass",
         ":shape_inference",
         "//tensorflow/compiler/xla:status_macros",

@@ -122,8 +122,8 @@ def _create_ordered_io(keras_model, estimator_io, is_input=True):
             'It needs to match one '
             'of the following: %s' % ('input' if is_input else 'output', key,
                                       ', '.join(keras_io_names)))
-      tensors = [_convert_tensor(estimator_io[io_name])
-                 for io_name in keras_io_names]
+    tensors = [_convert_tensor(estimator_io[io_name])
+               for io_name in keras_io_names]
     return tensors
   else:
     # Plain array.
@@ -453,7 +453,7 @@ def model_to_estimator(keras_model=None,
   """Constructs an `Estimator` instance from given keras model.
 
   For usage example, please see
-  @{$programmers_guide/estimators$creating_estimators_from_keras_models}.
+  @{$guide/estimators$creating_estimators_from_keras_models}.
 
   Args:
     keras_model: A compiled Keras model object. This argument is mutually

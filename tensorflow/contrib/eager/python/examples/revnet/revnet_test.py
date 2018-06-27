@@ -36,10 +36,11 @@ def train_one_iter(model, inputs, labels, optimizer, global_step=None):
   return loss
 
 
-class RevnetTest(tf.test.TestCase):
+class RevNetTest(tf.test.TestCase):
 
   def setUp(self):
-    super(RevnetTest, self).setUp()
+    super(RevNetTest, self).setUp()
+    tf.set_random_seed(1)
     config = config_.get_hparams_imagenet_56()
     shape = (config.batch_size,) + config.input_shape
     self.model = revnet.RevNet(config=config)
@@ -56,7 +57,7 @@ class RevnetTest(tf.test.TestCase):
     del self.x
     del self.t
     del self.config
-    super(RevnetTest, self).tearDown()
+    super(RevNetTest, self).tearDown()
 
   def test_call(self):
     """Test `call` function."""
@@ -67,7 +68,8 @@ class RevnetTest(tf.test.TestCase):
   def test_compute_gradients(self):
     """Test `compute_gradients` function."""
 
-    grads, vars_, _ = self.model.compute_gradients(inputs=self.x, labels=self.t)
+    grads, vars_, _ = self.model.compute_gradients(
+        inputs=self.x, labels=self.t, training=True)
     self.assertTrue(isinstance(grads, list))
     self.assertTrue(isinstance(vars_, list))
     self.assertEqual(len(grads), len(vars_))
@@ -84,7 +86,7 @@ class RevnetTest(tf.test.TestCase):
   def test_compute_gradients_defun(self):
     """Test `compute_gradients` function with defun."""
     compute_gradients = tfe.defun(self.model.compute_gradients)
-    grads, vars_, _ = compute_gradients(self.x, self.t)
+    grads, vars_, _ = compute_gradients(self.x, self.t, training=True)
     self.assertTrue(isinstance(grads, list))
     self.assertTrue(isinstance(vars_, list))
     self.assertEqual(len(grads), len(vars_))
@@ -107,8 +109,9 @@ class RevnetTest(tf.test.TestCase):
       model = revnet.RevNet(config=self.config)
       grads_all, vars_all, _ = model.compute_gradients(x, t, training=True)
       optimizer = tf.train.AdamOptimizer(learning_rate=1e-3)
-      # TODO(lxuechen): This doesn't work due to b/110145168
-      with tf.control_dependencies(model.updates):
+      updates = model.get_updates_for(x)
+      self.assertEqual(len(updates), 192)
+      with tf.control_dependencies(model.get_updates_for(x)):
         train_op = optimizer.apply_gradients(
             zip(grads_all, vars_all), global_step=global_step)
 
@@ -143,7 +146,7 @@ class MockIterator(object):
     return self._tensors
 
 
-class RevnetBenchmark(tf.test.Benchmark):
+class RevNetBenchmark(tf.test.Benchmark):
   """Eager and graph benchmarks for RevNet."""
 
   def _train_batch_sizes(self):

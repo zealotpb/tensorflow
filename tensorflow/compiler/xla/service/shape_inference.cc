@@ -329,7 +329,7 @@ StatusOr<Shape> InferWindowOutputShape(const Shape& base_shape,
   return ShapeUtil::MakeShape(element_type, new_dimensions);
 }
 
-/* static */ StatusOr<Shape> ShapeInference::InferGenerateTokenShape(
+/* static */ StatusOr<Shape> ShapeInference::InferAfterAllShape(
     tensorflow::gtl::ArraySlice<const Shape*> arg_shapes) {
   for (const Shape* arg_shape : arg_shapes) {
     if (arg_shape->element_type() != TOKEN) {
@@ -885,6 +885,7 @@ ShapeInference::InferDegenerateDimensionBroadcastShape(HloOpcode operation,
     }
     case HloOpcode::kAnd:
     case HloOpcode::kOr:
+    case HloOpcode::kXor:
       if (lhs.element_type() != PRED &&
           !primitive_util::IsIntegralType(lhs.element_type())) {
         return InvalidArgument(

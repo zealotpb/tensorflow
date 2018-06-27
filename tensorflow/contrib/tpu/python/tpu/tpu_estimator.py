@@ -1136,7 +1136,7 @@ class _InputPipeline(object):
       err_msg = ('Input pipeline contains one or more QueueRunners. '
                  'It could be slow and not scalable. Please consider '
                  'converting your input pipeline to use `tf.data` instead (see '
-                 'https://www.tensorflow.org/programmers_guide/datasets for '
+                 'https://www.tensorflow.org/guide/datasets for '
                  'instructions.')
       if _WRAP_INPUT_FN_INTO_WHILE_LOOP:
         raise RuntimeError(err_msg)
@@ -3143,7 +3143,7 @@ def _add_item_to_params(params, key, value):
   if isinstance(params, hparam.HParams):
     # For HParams, we need to use special API.
     if key in params:
-      params.key = value
+      params.set_hparam(key, value)
     else:
       params.add_hparam(key, value)
   else:
