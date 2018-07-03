@@ -592,12 +592,11 @@ StatusOr<Shape> ParseShapeStringInternal(tensorflow::StringPiece* s) {
   // tensorflow::StringPiece is not compatible with internal RE2 StringPiece, so
   // we convert in to the RE2-consumable type and then consume the corresponding
   // amount from our StringPiece type.
+  static LazyRE2 shape_pattern = {
+      "^(\\w*\\d*)\\[([\\d,]*)\\](?:\\s*(dense|sparse)?\\s*{([\\d,]+)})?"};
   tensorflow::RegexpStringPiece s_consumable(s->data(), s->size());
-  if (RE2::Consume(
-          &s_consumable,
-          "^(\\w*\\d*)\\[([\\d,]*)\\](?:\\s*(dense|sparse)?\\s*{([\\d,]+)})?",
-          &element_type_string, &dimensions_string, &format_string,
-          &layout_string)) {
+  if (RE2::Consume(&s_consumable, *shape_pattern, &element_type_string,
+                   &dimensions_string, &format_string, &layout_string)) {
     size_t consumed = s->size() - s_consumable.size();
     s->remove_prefix(consumed);
     auto string_to_int64 = [&s](const string& input) -> StatusOr<int64> {
@@ -892,41 +891,51 @@ StatusOr<Shape> ParseShapeStringInternal(tensorflow::StringPiece* s) {
 
 /* static */ Status ShapeUtil::ValidateShapeSize(const Shape& shape) {
   VLOG(3) << "Validating shape size: " << ShapeUtil::HumanString(shape);
-  auto invalid_argument =
-      InvalidArgument("Shape %s size may overflow int64.",
-                      ShapeUtil::HumanString(shape).c_str());
+
   if (!IsArray(shape)) {
     return Status::OK();
   }
-  int64 shape_size;
-  if (LayoutUtil::IsSparseArray(shape)) {
-    shape_size = LayoutUtil::MaxSparseElements(shape.layout());
-    shape_size = MultiplyWithoutOverflow(shape_size, ShapeUtil::Rank(shape));
-    if (shape_size < 0) {
-      return invalid_argument;
-    }
-    shape_size = MultiplyWithoutOverflow(shape_size, sizeof(int64));
-    if (shape_size < 0) {
-      return invalid_argument;
-    }
-  }
 
-  // This is intentionally unconditional: even if the shape is sparse, we want
-  // to verify the densified version has a reasonable size.
-  if (shape.dimensions().empty()) {
-    return Status::OK();
-  }
-  shape_size = 1;
-  for (int64 dim : shape.dimensions()) {
-    shape_size = MultiplyWithoutOverflow(shape_size, dim);
-    if (shape_size < 0) {
-      return invalid_argument;
+  int64 shape_size = [&shape]() {
+    int64 shape_size;
+    if (LayoutUtil::IsSparseArray(shape)) {
+      shape_size = LayoutUtil::MaxSparseElements(shape.layout());
+      if (shape_size < 0) {
+        return shape_size;
+      }
+      shape_size = MultiplyWithoutOverflow(shape_size, ShapeUtil::Rank(shape));
+      if (shape_size < 0) {
+        return shape_size;
+      }
+      shape_size = MultiplyWithoutOverflow(shape_size, sizeof(int64));
+      if (shape_size < 0) {
+        return shape_size;
+      }
     }
-  }
-  shape_size = MultiplyWithoutOverflow(
-      shape_size, ByteSizeOfPrimitiveType(shape.element_type()));
+
+    shape_size = 1;
+
+    // This is intentionally unconditional: even if the shape is sparse, we want
+    // to verify the densified version has a reasonable size.
+    if (shape.dimensions().empty()) {
+      return shape_size;
+    }
+
+    for (int64 dim : shape.dimensions()) {
+      shape_size = MultiplyWithoutOverflow(shape_size, dim);
+      if (shape_size < 0) {
+        return shape_size;
+      }
+    }
+    shape_size = MultiplyWithoutOverflow(
+        shape_size, ByteSizeOfPrimitiveType(shape.element_type()));
+
+    return shape_size;
+  }();
+
   if (shape_size < 0) {
-    return invalid_argument;
+    return InvalidArgument("Shape %s size may overflow int64.",
+                           ShapeUtil::HumanString(shape).c_str());
   }
 
   VLOG(3) << "Shape size is valid: " << shape_size;

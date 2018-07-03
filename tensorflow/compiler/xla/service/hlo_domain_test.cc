@@ -201,9 +201,10 @@ HloModule Module
 ENTRY entry {
   p0 = (f32[4]) parameter(0)
   a = f32[4] get-tuple-element(p0), index=0
-  b = (f32[4], u32[]) send(a), channel_id=1, sharding={maximal device=0}
+  token = token[] after-all()
+  b = (f32[4], u32[]) send(a, token), channel_id=1, sharding={maximal device=0}
   c = () send-done(b), channel_id=1, sharding={maximal device=0}
-  d = (f32[4], u32[]) recv(), channel_id=2, sharding={maximal device=0}
+  d = (f32[4], u32[]) recv(token), channel_id=2, sharding={maximal device=0}
   e = f32[4] recv-done(d), channel_id=2, sharding={maximal device=0}
   f = f32[4] add(a, e)
   g = f32[4] subtract(a, e)
@@ -238,10 +239,11 @@ TEST_F(HloDomainTest, CheckNoDomainAddedOnPureIOComputation) {
 HloModule Module
 
 ENTRY entry {
-  a = (f32[4], u32[]) recv(), channel_id=1, sharding={maximal device=-1}
+  token = token[] after-all(), sharding={maximal device=-1}
+  a = (f32[4], u32[]) recv(token), channel_id=1, sharding={maximal device=-1}
   b = f32[4] recv-done(a), channel_id=1, sharding={maximal device=-1}
   c = f32[4] add(b, b), sharding={maximal device=-1}
-  d = (f32[4], u32[]) send(c), channel_id=2, sharding={maximal device=-1}
+  d = (f32[4], u32[]) send(c, token), channel_id=2, sharding={maximal device=-1}
   ROOT e = () send-done(d), channel_id=2, sharding={maximal device=-1}
 }
 )";
@@ -259,10 +261,11 @@ TEST_F(HloDomainTest, CheckNormalizationOnPureIOComputation) {
 HloModule Module
 
 ENTRY entry {
-  a = (f32[4], u32[]) recv(), channel_id=1, sharding={maximal device=0}
+  token = token[] after-all(), sharding={maximal device=0}
+  a = (f32[4], u32[]) recv(token), channel_id=1, sharding={maximal device=0}
   b = f32[4] recv-done(a), channel_id=1, sharding={maximal device=0}
   c = f32[4] add(b, b)
-  d = (f32[4], u32[]) send(c), channel_id=2, sharding={maximal device=0}
+  d = (f32[4], u32[]) send(c, token), channel_id=2, sharding={maximal device=0}
   ROOT e = () send-done(d), channel_id=2, sharding={maximal device=0}
 }
 )";
@@ -428,6 +431,27 @@ ENTRY entry {
       new_tuple->sharding(),
       HloSharding::Tuple(new_tuple->shape(), {HloSharding::AssignDevice(1),
                                               HloSharding::AssignDevice(0)}));
+}
+
+// Tests that text dumps of domain instructions can be parsed back, in the
+// specific case of null shardings.
+TEST_F(HloDomainTest, DumpParseNullSharding) {
+  auto builder = HloComputation::Builder(TestName());
+  Shape shape = ShapeUtil::MakeShape(F32, {});
+  auto sharding_md_0 = MakeUnique<ShardingMetadata>(nullptr);
+  auto sharding_md_1 = MakeUnique<ShardingMetadata>(nullptr);
+  HloInstruction* param =
+      builder.AddInstruction(HloInstruction::CreateParameter(0, shape, "p"));
+  HloInstruction* domain = builder.AddInstruction(HloInstruction::CreateDomain(
+      shape, param, std::move(sharding_md_0), std::move(sharding_md_1)));
+  builder.AddInstruction(
+      HloInstruction::CreateBinary(shape, HloOpcode::kAdd, domain, domain));
+
+  auto module = CreateNewModule();
+  module->AddEntryComputation(builder.Build());
+
+  auto hlo_string = module->ToString();
+  ASSERT_TRUE(ParseModule(hlo_string).status().ok());
 }
 
 }  // namespace

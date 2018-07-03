@@ -278,10 +278,11 @@ ENTRY %WhileWithScalarS32Result.v2 () -> s32[] {
 R"(HloModule TwoSendRecvBothWayRecvFist_module
 
 ENTRY %TwoSendRecvBothWayRecvFist.v3 () -> f32[] {
-  %recv = (f32[], u32[]) recv(), channel_id=15, sharding={maximal device=1}
+  %token = token[] after-all()
+  %recv = (f32[], u32[]) recv(token[] %token), channel_id=15, sharding={maximal device=1}
   ROOT %recv-done = f32[] recv-done((f32[], u32[]) %recv), channel_id=15, sharding={maximal device=1}
   %constant = f32[] constant(2.1), sharding={maximal device=0}
-  %send = (f32[], u32[]) send(f32[] %constant), channel_id=16, sharding={maximal device=0}, control-predecessors={%recv}
+  %send = (f32[], u32[]) send(f32[] %constant, token[] %token), channel_id=16, sharding={maximal device=0}, control-predecessors={%recv}
   %send-done = () send-done((f32[], u32[]) %send), channel_id=16, sharding={maximal device=0}
 }
 
@@ -832,6 +833,31 @@ ENTRY ReducePrecision {
 
 )"
 },
+// Sort (Key)
+{
+"SortKey",
+R"(HloModule sort
+
+ENTRY Sort {
+  x = f32[1024]{0} parameter(0)
+  ROOT sorted = f32[1024]{0} sort(x)
+}
+
+)"
+},
+// Sort (Key, Value)
+{
+"SortKeyValue",
+R"(HloModule sort
+
+ENTRY Sort {
+  keys = f32[1024]{0} parameter(0)
+  values = s32[1024]{0} parameter(1)
+  ROOT sorted = (f32[1024]{0}, s32[1024]{0}) sort(keys, values)
+}
+
+)"
+},
 // Conditional
 {
 "Conditional",
@@ -1196,10 +1222,11 @@ TEST_F(HloParserTest, UnexpectedAttribute) {
   const string original = R"(HloModule unexpected_attr_module
 
 ENTRY %TwoSendRecvBothWayRecvFist.v3 () -> f32[] {
-  %recv = (f32[], u32[]) recv(), channel_id=15
+  %token = token[] after-all()
+  %recv = (f32[], u32[]) recv(token[] %token), channel_id=15
   %recv-done = f32[] recv-done((f32[], u32[]) %recv), channel_id=15
   ROOT %constant = f32[] constant(2.1)
-  %send = (f32[], u32[]) send(f32[] %constant), channel_id=16, calls=%recv
+  %send = (f32[], u32[]) send(f32[] %constant, token[] %token), channel_id=16, calls=%recv
   %send-done = () send-done((f32[], u32[]) %send), channel_id=16
 }
 
@@ -1212,10 +1239,11 @@ TEST_F(HloParserTest, MissingAttribute) {
   const string original = R"(HloModule missing_attr_module
 
 ENTRY %TwoSendRecvBothWayRecvFist.v3 () -> f32[] {
-  %recv = (f32[], u32[]) recv(), channel_id=15
+  %token = token[] after-all()
+  %recv = (f32[], u32[]) recv(token[] %token), channel_id=15
   %recv-done = f32[] recv-done((f32[], u32[]) %recv), channel_id=15
   ROOT %constant = f32[] constant(-2.1)
-  %send = (f32[], u32[]) send(f32[] %constant)
+  %send = (f32[], u32[]) send(f32[] %constant, token[] %token)
   %send-done = () send-done((f32[], u32[]) %send), channel_id=16
 }
 
@@ -1228,10 +1256,11 @@ TEST_F(HloParserTest, PredecessorUndefined) {
   const string original = R"(HloModule pre_not_found_module
 
 ENTRY %TwoSendRecvBothWayRecvFist.v3 () -> f32[] {
-  %recv = (f32[], u32[]) recv(), channel_id=15
+  %token = token[] after-all()
+  %recv = (f32[], u32[]) recv(token[] %token), channel_id=15
   %recv-done = f32[] recv-done((f32[], u32[]) %recv), channel_id=15
   ROOT %constant = f32[] constant(2.1)
-  %send = (f32[], u32[]) send(f32[] %constant), channel_id=16, control-predecessors={%done}
+  %send = (f32[], u32[]) send(f32[] %constant, token[] %token), channel_id=16, control-predecessors={%done}
   %send-done = () send-done((f32[], u32[]) %send), channel_id=16
 }
 

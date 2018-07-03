@@ -139,6 +139,7 @@ typedef enum {
   kTfLiteString = 5,
   kTfLiteBool = 6,
   kTfLiteInt16 = 7,
+  kTfLiteComplex64 = 8,
 } TfLiteType;
 
 // Parameters for asymmetric quantization. Quantized values can be converted
@@ -159,6 +160,7 @@ typedef union {
   uint8_t* uint8;
   bool* b;
   int16_t* i16;
+  _Complex float* c64;
 } TfLitePtrUnion;
 
 // Memory allocation strategies. kTfLiteMmapRo is for read-only memory-mapped
@@ -243,7 +245,8 @@ void TfLiteTensorReset(TfLiteType type, const char* name, TfLiteIntArray* dims,
                        const void* allocation, bool is_variable,
                        TfLiteTensor* tensor);
 
-// Resize the allocated data of a (dynamic) tensor.
+// Resize the allocated data of a (dynamic) tensor. Tensors with allocation
+// types other than kTfLiteDynamic will be ignored.
 void TfLiteTensorRealloc(size_t num_bytes, TfLiteTensor* tensor);
 
 // A structure representing an instance of a node.

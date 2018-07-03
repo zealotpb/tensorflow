@@ -79,6 +79,7 @@ void MakeGeneralGraphTransformationsSet(
   transformations->Add(new FuseBinaryIntoFollowingAffine);
   transformations->Add(new FuseBroadcastIntoFollowingBinary);
   transformations->Add(new MergeReshapeIntoPrecedingTranspose);
+  transformations->Add(new MoveBinaryOperatorBeforeReshape);
   transformations->Add(new ReorderElementwiseUnary);
   transformations->Add(new ReorderReshapeTranspose);
   transformations->Add(new ResolveBatchNormalization);
@@ -133,6 +134,8 @@ bool SupportsLstmCell(FileFormat format) {
 bool SupportsPreallocatedWorkspace(FileFormat format) {
   return (format == TFLITE);
 }
+
+bool SupportsShuffledFCWeights(FileFormat format) { return format == TFLITE; }
 
 bool IsRealValued(toco::ArrayDataType type) {
   // TODO(benoitjacob) - this is hardcoding that uint8 and int16 are only used
@@ -335,6 +338,10 @@ void Transform(const TocoFlags& toco_flags, Model* model) {
                                 new RemoveFinalDequantizeOp,
                                 ensure_safe_for_int8_kernels,
                             });
+    if (SupportsShuffledFCWeights(output_format)) {
+      RunGraphTransformations(model, "shuffling of FC weights",
+                              {new ShuffleFCWeights});
+    }
   } else {
     GraphTransformationsSet dequantization_transformations{new Dequantize};
     // Dequantize creates FakeQuant nodes. We may want to discard

@@ -34,6 +34,7 @@ from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import state_ops
+from tensorflow.python.ops import variable_scope as vs
 from tensorflow.python.training import device_util
 from tensorflow.python.training import distribute as distribute_lib
 from tensorflow.python.training import saver
@@ -290,13 +291,13 @@ class MirroredVariable(DistributedVariable, Mirrored,
                        checkpointable.CheckpointableBase):
   """Holds a map from device to variables whose values are kept in sync."""
 
-  def __init__(self, index, primary_var, aggregation_method=None):
+  def __init__(self, index, primary_var, aggregation):
     # Use a weakref to make it easy to map from the contained values
     # to the container without introducing a reference cycle.
     for v in six.itervalues(index):
       v._mirrored_container = weakref.ref(self)  # pylint: disable=protected-access
     self._primary_var = primary_var
-    self._aggregation_method = aggregation_method
+    self._aggregation = aggregation
     super(MirroredVariable, self).__init__(index)
 
   # The arguments to update() are automatically unwrapped so the update()
@@ -325,17 +326,16 @@ class MirroredVariable(DistributedVariable, Mirrored,
       # handle the different use cases can be found in the _reduce method.
       # We call the function on each of the mirrored variables with the reduced
       # value.
-      if not self._aggregation_method:
+      if self._aggregation == vs.VariableAggregation.NONE:
         raise ValueError("You must specify an aggregation method to update a "
                          "MirroredVariable in Tower Context.")
 
       def merge_fn(strategy, value):
-        return strategy.update(self,
-                               f,
-                               strategy.reduce(
-                                   method_string=self._aggregation_method,
-                                   value=value,
-                                   destinations=self))
+        return strategy.update(
+            self, f,
+            strategy.reduce(
+                aggregation=self._aggregation, value=value, destinations=self))
+
       return distribute_lib.get_tower_context().merge_call(merge_fn, *args,
                                                            **kwargs)
 
@@ -347,6 +347,10 @@ class MirroredVariable(DistributedVariable, Mirrored,
 
   def assign(self, *args, **kwargs):
     return self._assign_func(f=state_ops.assign, *args, **kwargs)
+
+  @property
+  def aggregation(self):
+    return self._aggregation
 
   def _get_cross_tower(self):
     device = device_util.canonicalize(device_util.current())
@@ -411,7 +415,7 @@ class _TowerLocalSaveable(saver.BaseSaverBuilder.SaveableObject):
     # To preserve the sum across save and restore, we have to divide the
     # total across all devices when restoring a variable that was summed
     # when saving.
-    if self._tower_local_variable.reduce_method == "sum":
+    if self._tower_local_variable.aggregation == vs.VariableAggregation.SUM:
       tensor *= 1. / len(self._tower_local_variable.devices)
     return control_flow_ops.group([
         _assign_on_device(d, v, tensor)
@@ -428,9 +432,9 @@ class TowerLocalVariable(DistributedVariable, PerDevice,
                          checkpointable.CheckpointableBase):
   """Holds a map from device to variables whose values are reduced on save."""
 
-  def __init__(self, index, primary_var, reduce_method):
+  def __init__(self, index, primary_var, aggregation):
     self._primary_var = primary_var
-    self._reduce_method = reduce_method
+    self._aggregation = aggregation
     super(TowerLocalVariable, self).__init__(index)
 
   def assign_sub(self, *args, **kwargs):
@@ -446,14 +450,14 @@ class TowerLocalVariable(DistributedVariable, PerDevice,
     return self.get().assign(*args, **kwargs)
 
   @property
-  def reduce_method(self):
-    return self._reduce_method
+  def aggregation(self):
+    return self._aggregation
 
   def _get_cross_tower(self):
     all_components = tuple(self._index.values())
     # TODO(josh11b): Use a strategy-specific method.
     total = math_ops.add_n(all_components)
-    if self._reduce_method == "mean":
+    if self._aggregation == vs.VariableAggregation.MEAN:
       return total * (1./ len(all_components))
     return total
 
@@ -861,3 +865,71 @@ class MapOutput(object):
 
   def get(self):
     return self._l
+
+
+class MultiStepContext(object):
+  """A context object that can be used to capture things when running steps.
+
+  This context object is useful when running multiple steps at a time using the
+  `run_steps_on_dataset` API. For e.g. it allows the user's step function to
+  specify which outputs to emit at what frequency. Currently it only supports
+  capturing output from the last step, but will soon be augmented to support
+  other use cases such as output each N steps.
+  """
+
+  def __init__(self, initial_loop_values=None):
+    """Initializes an output context.
+
+    Args:
+      initial_loop_values: Initial values passed to the run steps
+        while loop. The only purpose is to verify the shapes and types
+        when the actual output is set. This will be removed once we
+        automatically infer the output shapes and types (and do not need to
+        check for user error in specifying them manually).
+    Returns:
+      A context object.
+    """
+    self._last_step_outputs = None
+    self._non_tensor_outputs = None
+    self._initial_loop_values = initial_loop_values
+
+  @property
+  def last_step_outputs(self):
+    """Return the last step's outputs."""
+    return self._last_step_outputs
+
+  @last_step_outputs.setter
+  def last_step_outputs(self, outputs):
+    """Set the last step's outputs."""
+    self._verify_structure_shapes_types(outputs, self._initial_loop_values)
+    self._last_step_outputs = outputs
+
+  @property
+  def non_tensor_outputs(self):
+    """Return the non tensor outputs."""
+    return self._non_tensor_outputs
+
+  @non_tensor_outputs.setter
+  def non_tensor_outputs(self, outputs):
+    """Set any non tensor outputs."""
+    self._non_tensor_outputs = outputs
+
+  def _verify_structure_shapes_types(self, left, right):
+    """Verify that the structure, shapes and types of left are same as right."""
+    nest.assert_same_structure(left, right)
+    flat_left = nest.flatten(left)
+    flat_right = nest.flatten(right)
+    assert len(flat_left) == len(flat_right), (
+        "Length of left {} and right {} should be same.".
+        format(len(flat_left), len(flat_right)))
+
+    for o, i in zip(flat_left, flat_right):
+      # TODO(priyag): Add checks for other types like IndexedSlices.
+      if isinstance(o, ops.Tensor):
+        assert isinstance(i, ops.Tensor)
+        assert o.shape == i.shape, (
+            "Shape {} of left {} doesn't match shape {} of right {}.".
+            format(o.shape, o, i.shape, i))
+        assert o.dtype == i.dtype, (
+            "Dtype {} of left {} doesn't match dtype {} of right {}.".
+            format(o.dtype, o, i.dtype, i))

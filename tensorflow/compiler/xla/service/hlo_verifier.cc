@@ -108,17 +108,29 @@ Status ShapeVerifier::HandleReducePrecision(HloInstruction* reduce_precision) {
                                           reduce_precision->mantissa_bits()));
 }
 
+namespace {
+
+Status CheckIsTokenOperand(const HloInstruction* instruction,
+                           int64 operand_no) {
+  const HloInstruction* token = instruction->operand(operand_no);
+  if (!ShapeUtil::Equal(token->shape(), ShapeUtil::MakeTokenShape())) {
+    return InternalError(
+        "Expected operand %lld to be token-shaped, actual shape is"
+        "%s:\n%s",
+        operand_no, ShapeUtil::HumanString(token->shape()).c_str(),
+        instruction->ToString().c_str());
+  }
+  return Status::OK();
+}
+
+}  // namespace
+
 Status ShapeVerifier::HandleInfeed(HloInstruction* instruction) {
   HloInfeedInstruction* infeed = Cast<HloInfeedInstruction>(instruction);
   // Infeed has an optional single token operand.
   // TODO(b/80000000): Update when token is not optional.
-  if (infeed->operand_count() == 1 &&
-      !ShapeUtil::Equal(infeed->operand(0)->shape(),
-                        ShapeUtil::MakeTokenShape())) {
-    return InternalError(
-        "Expected infeed operand to be token-shaped, actual shape is %s:\n%s",
-        ShapeUtil::HumanString(infeed->operand(0)->shape()).c_str(),
-        infeed->ToString().c_str());
+  if (infeed->operand_count() == 1) {
+    TF_RETURN_IF_ERROR(CheckIsTokenOperand(instruction, 0));
   }
 
   // The output of infeed is a tuple containing the data value and a token.
@@ -131,13 +143,8 @@ Status ShapeVerifier::HandleOutfeed(HloInstruction* instruction) {
   HloOutfeedInstruction* outfeed = Cast<HloOutfeedInstruction>(instruction);
   // Outfeed has an optional token operand (operand 1).
   // TODO(b/80000000): Update when token is not optional.
-  if (outfeed->operand_count() == 2 &&
-      !ShapeUtil::Equal(outfeed->operand(1)->shape(),
-                        ShapeUtil::MakeTokenShape())) {
-    return InternalError(
-        "Expected operand 1 of outfeed to be a token, actual shape is %s:\n%s",
-        ShapeUtil::HumanString(outfeed->operand(1)->shape()).c_str(),
-        outfeed->ToString().c_str());
+  if (outfeed->operand_count() == 2) {
+    TF_RETURN_IF_ERROR(CheckIsTokenOperand(instruction, 1));
   }
 
   // Outfeed has a separate shape field for the value which is outfed to the
@@ -167,7 +174,16 @@ Status ShapeVerifier::HandleReverse(HloInstruction* reverse) {
 }
 
 Status ShapeVerifier::HandleSort(HloInstruction* sort) {
-  return CheckUnaryShape(sort);
+  if (sort->operand_count() == 2 &&
+      !ShapeUtil::SameDimensions(sort->operand(0)->shape(),
+                                 sort->operand(1)->shape())) {
+    return InternalError(
+        "Expected sort to have to have the same dimensions for the keys and "
+        "the values. Keys shape is: %s\n, Values shape is: %s",
+        ShapeUtil::HumanString(sort->operand(0)->shape()).c_str(),
+        ShapeUtil::HumanString(sort->operand(1)->shape()).c_str());
+  }
+  return CheckVariadicShape(sort);
 }
 
 Status ShapeVerifier::HandleConstant(HloInstruction* constant) {
@@ -329,6 +345,7 @@ Status ShapeVerifier::HandleSend(HloInstruction* send) {
   const HloInstruction* send_done = send->users().front();
   TF_RET_CHECK(send_done->opcode() == HloOpcode::kSendDone);
   TF_RETURN_IF_ERROR(CheckSameChannel(send, send_done));
+  TF_RETURN_IF_ERROR(CheckIsTokenOperand(send, 1));
   return CheckShape(
       send, ShapeUtil::MakeTupleShape(
                 {send->operand(0)->shape(), ShapeUtil::MakeShape(U32, {})}));
@@ -339,6 +356,7 @@ Status ShapeVerifier::HandleSendDone(HloInstruction* send_done) {
   const HloInstruction* send = send_done->operand(0);
   TF_RET_CHECK(send->opcode() == HloOpcode::kSend);
   TF_RETURN_IF_ERROR(CheckSameChannel(send, send_done));
+
   return CheckShape(send_done, ShapeUtil::MakeNil());
 }
 
@@ -347,6 +365,7 @@ Status ShapeVerifier::HandleRecv(HloInstruction* recv) {
   const HloInstruction* recv_done = recv->users().front();
   TF_RET_CHECK(recv_done->opcode() == HloOpcode::kRecvDone);
   TF_RETURN_IF_ERROR(CheckSameChannel(recv, recv_done));
+  TF_RETURN_IF_ERROR(CheckIsTokenOperand(recv, 0));
   return CheckShape(recv,
                     ShapeUtil::MakeTupleShape(
                         {recv_done->shape(), ShapeUtil::MakeShape(U32, {})}));

@@ -782,6 +782,9 @@ class _PolymorphicFunction(object):
     kwd_values = _deterministic_dict_values(kwds)
     inputs = args + kwd_values
     signature = tuple(_cache_key(x) for x in inputs)
+    # The graph, or whether we're executing eagerly, should be a part of the
+    # signature so we don't improperly capture tensors such as variables.
+    signature += tuple([context.executing_eagerly() or ops.get_default_graph()])
 
     if signature not in self._arguments_to_functions:
       graph_function = _trace_and_define_function(
@@ -797,6 +800,10 @@ class _PolymorphicFunction(object):
     """Calls a graph function specialized for this input signature."""
     graph_function, inputs = self._maybe_define_function(*args, **kwds)
     return graph_function(*inputs)
+
+  def call_python_function(self, *args, **kwargs):
+    """Directly calls the wrapped python function."""
+    return self._python_function(*args, **kwargs)
 
   @property
   def variables(self):

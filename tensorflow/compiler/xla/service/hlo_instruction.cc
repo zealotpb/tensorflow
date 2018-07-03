@@ -112,10 +112,10 @@ StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
       break;
     }
     case HloOpcode::kSend:
-      TF_RET_CHECK(proto.operand_ids_size() == 1)
-          << "Send instruction should have 1 operand but sees "
+      TF_RET_CHECK(proto.operand_ids_size() == 2)
+          << "Send instruction should have 2 operand but sees "
           << proto.operand_ids_size();
-      instruction = CreateSend(operands(0), proto.channel_id());
+      instruction = CreateSend(operands(0), operands(1), proto.channel_id());
       break;
     case HloOpcode::kSendDone:
       TF_RET_CHECK(proto.operand_ids_size() == 1)
@@ -124,11 +124,11 @@ StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
       instruction = CreateSendDone(operands(0));
       break;
     case HloOpcode::kRecv:
-      TF_RET_CHECK(proto.operand_ids_size() == 0)
-          << "Recv instruction should have 0 operand but sees "
+      TF_RET_CHECK(proto.operand_ids_size() == 1)
+          << "Recv instruction should have 1 operand but sees "
           << proto.operand_ids_size();
-      instruction =
-          CreateRecv(proto.shape().tuple_shapes(0), proto.channel_id());
+      instruction = CreateRecv(proto.shape().tuple_shapes(0), operands(0),
+                               proto.channel_id());
       break;
     case HloOpcode::kRecvDone:
       TF_RET_CHECK(proto.operand_ids_size() == 1)
@@ -489,7 +489,6 @@ HloInstruction::CreateGetTupleElement(const Shape& shape,
     case HloOpcode::kReal:
     case HloOpcode::kSign:
     case HloOpcode::kSin:
-    case HloOpcode::kSort:
     case HloOpcode::kTanh:
       break;
     default:
@@ -651,8 +650,8 @@ HloInstruction::CreateCrossReplicaSum(
 }
 
 /* static */ std::unique_ptr<HloInstruction> HloInstruction::CreateSend(
-    HloInstruction* operand, int64 channel_id) {
-  return MakeUnique<HloSendInstruction>(operand, channel_id);
+    HloInstruction* operand, HloInstruction* token, int64 channel_id) {
+  return MakeUnique<HloSendInstruction>(operand, token, channel_id);
 }
 
 /* static */ std::unique_ptr<HloInstruction> HloInstruction::CreateSendDone(
@@ -664,8 +663,8 @@ HloInstruction::CreateCrossReplicaSum(
 }
 
 /* static */ std::unique_ptr<HloInstruction> HloInstruction::CreateRecv(
-    const Shape& shape, int64 channel_id) {
-  return MakeUnique<HloRecvInstruction>(shape, channel_id);
+    const Shape& shape, HloInstruction* token, int64 channel_id) {
+  return MakeUnique<HloRecvInstruction>(shape, token, channel_id);
 }
 
 /* static */ std::unique_ptr<HloInstruction> HloInstruction::CreateRecvDone(
@@ -908,6 +907,16 @@ HloInstruction::CreateBroadcastSequence(
   return MakeUnique<HloTransposeInstruction>(shape, operand, dimensions);
 }
 
+/* static */ std::unique_ptr<HloInstruction> HloInstruction::CreateSort(
+    const Shape& shape, HloInstruction* keys, HloInstruction* values) {
+  auto instruction = WrapUnique(new HloInstruction(HloOpcode::kSort, shape));
+  instruction->AppendOperand(keys);
+  if (values) {
+    instruction->AppendOperand(values);
+  }
+  return instruction;
+}
+
 /* static */ std::unique_ptr<HloInstruction> HloInstruction::CreateFusion(
     const Shape& shape, FusionKind fusion_kind, HloInstruction* fused_root) {
   return MakeUnique<HloFusionInstruction>(shape, fusion_kind, fused_root);
@@ -1122,7 +1131,6 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
     case HloOpcode::kReal:
     case HloOpcode::kSign:
     case HloOpcode::kSin:
-    case HloOpcode::kSort:
     case HloOpcode::kTanh:
       CHECK_EQ(new_operands.size(), 1);
       clone = CreateUnary(shape, opcode_, new_operands[0]);
@@ -1214,6 +1222,14 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
       break;
     case HloOpcode::kAfterAll:
       clone = CreateAfterAll(new_operands);
+      break;
+    case HloOpcode::kSort:
+      CHECK(new_operands.size() == 1 || new_operands.size() == 2)
+          << "Too many operands for sort: " << new_operands.size();
+      HloInstruction* keys = new_operands[0];
+      HloInstruction* values =
+          new_operands.size() == 2 ? new_operands[1] : nullptr;
+      clone = CreateSort(shape, keys, values);
       break;
   }
   SetupDerivedInstruction(clone.get());
@@ -1491,6 +1507,7 @@ bool HloInstruction::IdenticalSlowPath(
     case HloOpcode::kShiftRightArithmetic:
     case HloOpcode::kShiftRightLogical:
     case HloOpcode::kSign:
+    case HloOpcode::kSort:
     case HloOpcode::kSin:
     case HloOpcode::kSubtract:
     case HloOpcode::kTanh:
@@ -1519,10 +1536,6 @@ bool HloInstruction::IdenticalSlowPath(
     case HloOpcode::kConditional:
       return eq_computations(true_computation(), other.true_computation()) &&
              eq_computations(false_computation(), other.false_computation());
-
-    // These opcodes are not yet supported.
-    case HloOpcode::kSort:
-      return false;
 
     // Ops migrated to subclasses should never come to this line.
     // TODO(b/80131774): Remove this switch when migration is complete.
@@ -1604,6 +1617,10 @@ Status HloInstruction::ReplaceOperandWith(int64 operand_num,
   TF_RET_CHECK(operand_num >= 0);
   TF_RET_CHECK(operand_num < operand_count());
   HloInstruction* old_operand = mutable_operand(operand_num);
+  if (old_operand == new_operand) {
+    return Status::OK();
+  }
+
   TF_RET_CHECK(ShapeUtil::CompatibleIgnoringFpPrecision(old_operand->shape(),
                                                         new_operand->shape()))
       << old_operand->shape().ShortDebugString() << " is not compatible with "

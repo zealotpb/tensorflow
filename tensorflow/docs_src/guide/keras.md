@@ -221,7 +221,7 @@ To *evaluate* the inference-mode loss and metrics for the data provided:
 ```python
 model.evaluate(x, y, batch_size=32)
 
-model.evaluate(dataset, steps=30
+model.evaluate(dataset, steps=30)
 ```
 
 And to *predict* the output of the last layer in inference for the data provided,
@@ -581,15 +581,6 @@ model.compile(loss='binary_crossentropy', optimizer=optimizer)
 model.summary()
 ```
 
-Convert the Keras model to a `tf.estimator.Estimator` instance:
-
-```python
-keras_estimator = keras.estimator.model_to_estimator(
-  keras_model=model,
-  config=config,
-  model_dir='/tmp/model_dir')
-```
-
 Define an *input pipeline*. The `input_fn` returns a `tf.data.Dataset` object
 used to distribute the data across multiple devices—with each device processing
 a slice of the input batch.
@@ -613,6 +604,15 @@ argument. The default uses all available GPUs, like the following:
 ```python
 strategy = tf.contrib.distribute.MirroredStrategy()
 config = tf.estimator.RunConfig(train_distribute=strategy)
+```
+
+Convert the Keras model to a `tf.estimator.Estimator` instance:
+
+```python
+keras_estimator = keras.estimator.model_to_estimator(
+  keras_model=model,
+  config=config,
+  model_dir='/tmp/model_dir')
 ```
 
 Finally, train the `Estimator` instance by providing the `input_fn` and `steps`
